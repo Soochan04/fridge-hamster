@@ -1,5 +1,9 @@
 export const config = {
-    runtime: 'edge', // or omit for Node.js. Node environment is standard for Vercel
+    api: {
+        bodyParser: {
+            sizeLimit: '4mb',
+        },
+    },
 };
 
 export default async function handler(req, res) {
