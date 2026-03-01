@@ -381,7 +381,7 @@ async function startAnalysis() {
     analyzeBtn.disabled = true;
 
     try {
-        const response = await fetch('/.netlify/functions/chat', {
+        const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -574,7 +574,7 @@ async function generateRecipe() {
         ...
         `;
 
-        const response = await fetch('/.netlify/functions/chat', {
+        const response = await fetch('/api/chat', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
