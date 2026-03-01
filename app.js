@@ -231,7 +231,27 @@ myPageBtn.addEventListener('click', () => {
 });
 
 document.querySelector('.logo-text').addEventListener('click', goToMain);
-backToMainFromMyPageBtn.addEventListener('click', goToMain);
+backToMainFromMyPageBtn.addEventListener('click', () => {
+    myPageSection.style.display = 'none';
+    shareSection.style.display = 'none';
+    recipeSection.style.display = 'none';
+    resultSection.style.display = 'none';
+
+    // 리셋 처리
+    currentImageBase64 = null;
+    ingredients = [];
+    currentRecipe = null;
+    recipeContent.innerHTML = '';
+    imagePreview.src = '';
+    imagePreview.style.display = 'none';
+    dropZone.querySelector('.upload-content').style.opacity = '1';
+    analyzeBtn.disabled = true;
+
+    uploadSection.style.display = 'block';
+    uploadSection.classList.add('fade-in');
+
+    updateStepper(0);
+});
 
 function goToMain() {
     myPageSection.style.display = 'none';
