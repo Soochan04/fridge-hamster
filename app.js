@@ -120,20 +120,28 @@ async function performLogin() {
         return;
     }
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    doLoginBtn.disabled = true;
+    doSignupBtn.disabled = true;
 
-    if (error) {
-        showToast(`로그인 실패: ${error.message}`, 'error');
-    } else {
-        loginModal.style.display = 'none';
-        emailInput.value = '';
-        passwordInput.value = '';
-        showToast('로그인 성공!', 'success');
+    try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
-        // If they were trying to save a recipe, save it now
-        if (currentRecipe && recipeSection.style.display === 'block') {
-            saveCurrentRecipe();
+        if (error) {
+            showToast(`로그인 실패: ${error.message}`, 'error');
+        } else {
+            loginModal.style.display = 'none';
+            emailInput.value = '';
+            passwordInput.value = '';
+            showToast('로그인 성공!', 'success');
+
+            // If they were trying to save a recipe, save it now
+            if (currentRecipe && recipeSection.style.display === 'block') {
+                saveCurrentRecipe();
+            }
         }
+    } finally {
+        doLoginBtn.disabled = false;
+        doSignupBtn.disabled = false;
     }
 }
 
@@ -146,15 +154,28 @@ async function performSignup() {
         return;
     }
 
-    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    doLoginBtn.disabled = true;
+    doSignupBtn.disabled = true;
 
-    if (error) {
-        showToast(`회원가입 실패: ${error.message}`, 'error');
-    } else {
-        showToast('회원가입 성공! 이제 로그인 상태입니다.', 'success');
-        loginModal.style.display = 'none';
-        emailInput.value = '';
-        passwordInput.value = '';
+    try {
+        const { data, error } = await supabaseClient.auth.signUp({ email, password });
+
+        if (error) {
+            showToast(`회원가입 실패: ${error.message}`, 'error');
+        } else {
+            showToast('회원가입 성공! 이제 로그인 상태입니다.', 'success');
+            loginModal.style.display = 'none';
+            emailInput.value = '';
+            passwordInput.value = '';
+
+            // Auto-save just like login if they were waiting to save
+            if (currentRecipe && recipeSection.style.display === 'block') {
+                saveCurrentRecipe();
+            }
+        }
+    } finally {
+        doLoginBtn.disabled = false;
+        doSignupBtn.disabled = false;
     }
 }
 
