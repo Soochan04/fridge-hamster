@@ -37,13 +37,17 @@ const myPageBtn = document.getElementById('myPageBtn');
 const loginModal = document.getElementById('loginModal');
 const closeLoginBtn = document.getElementById('closeLoginBtn');
 const doLoginBtn = document.getElementById('doLoginBtn');
-const usernameInput = document.getElementById('usernameInput');
 const logoutBtn = document.getElementById('logoutBtn');
 
 const myPageSection = document.getElementById('myPageSection');
 const savedRecipeGrid = document.getElementById('savedRecipeGrid');
 const saveRecipeBtn = document.getElementById('saveRecipeBtn');
 const backToMainFromMyPageBtn = document.getElementById('backToMainFromMyPageBtn');
+
+// Auth Modals inputs
+const emailInput = document.getElementById('emailInput');
+const passwordInput = document.getElementById('passwordInput');
+const doSignupBtn = document.getElementById('doSignupBtn');
 
 // Custom Toasts and Modals
 const toastContainer = document.getElementById('toastContainer');
@@ -54,6 +58,11 @@ const cancelConfirmBtn = document.getElementById('cancelConfirmBtn');
 const okConfirmBtn = document.getElementById('okConfirmBtn');
 
 // API & State
+// Supabase Client Initialization
+const supabaseUrl = 'https://ahkbgczrmnikgakkkqmv.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoa2JnY3pybW5pa2dha2trcW12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIzNTEzMDMsImV4cCI6MjA4NzkyNzMwM30.8Q4ck2nLN2le8VMH9y2Ks1acPXXbeuknEe2vsF5H2S0';
+const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+
 let currentImageBase64 = null;
 let ingredients = [];
 let currentRecipe = null;
@@ -65,16 +74,23 @@ function initApp() {
 }
 
 // ---------------------------
-// Authentication (Mock LocalStorage)
+// Authentication (Supabase)
 // ---------------------------
-function checkLogin() {
-    const user = localStorage.getItem('mockUser');
+async function checkLogin() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    updateUserState(session?.user || null);
+
+    supabaseClient.auth.onAuthStateChange((_event, session) => {
+        updateUserState(session?.user || null);
+    });
+}
+
+function updateUserState(user) {
+    currentUser = user;
     if (user) {
-        currentUser = JSON.parse(user);
         loginBtn.style.display = 'none';
         myPageBtn.style.display = 'block';
     } else {
-        currentUser = null;
         loginBtn.style.display = 'block';
         myPageBtn.style.display = 'none';
     }
@@ -89,17 +105,30 @@ closeLoginBtn.addEventListener('click', () => {
 });
 
 doLoginBtn.addEventListener('click', performLogin);
-usernameInput.addEventListener('keypress', (e) => {
+doSignupBtn.addEventListener('click', performSignup);
+
+passwordInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') performLogin();
 });
 
-function performLogin() {
-    const username = usernameInput.value.trim();
-    if (username) {
-        localStorage.setItem('mockUser', JSON.stringify({ userId: username, name: username }));
-        checkLogin();
+async function performLogin() {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!email || !password) {
+        showToast('이메일과 비밀번호를 입력해주세요.', 'error');
+        return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+    if (error) {
+        showToast(`로그인 실패: ${error.message}`, 'error');
+    } else {
         loginModal.style.display = 'none';
-        usernameInput.value = '';
+        emailInput.value = '';
+        passwordInput.value = '';
+        showToast('로그인 성공!', 'success');
 
         // If they were trying to save a recipe, save it now
         if (currentRecipe && recipeSection.style.display === 'block') {
@@ -108,9 +137,29 @@ function performLogin() {
     }
 }
 
-logoutBtn.addEventListener('click', () => {
-    localStorage.removeItem('mockUser');
-    checkLogin();
+async function performSignup() {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value.trim();
+
+    if (!email || !password) {
+        showToast('이메일과 비밀번호를 입력해주세요.', 'error');
+        return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+
+    if (error) {
+        showToast(`회원가입 실패: ${error.message}`, 'error');
+    } else {
+        showToast('회원가입 성공! 이제 로그인 상태입니다.', 'success');
+        loginModal.style.display = 'none';
+        emailInput.value = '';
+        passwordInput.value = '';
+    }
+}
+
+logoutBtn.addEventListener('click', async () => {
+    await supabaseClient.auth.signOut();
     showToast('로그아웃 되었습니다.', 'success');
 
     // Go to main if on mypage
@@ -137,25 +186,23 @@ saveRecipeBtn.addEventListener('click', () => {
 function saveCurrentRecipe() {
     if (!currentUser || !currentRecipe) return;
 
-    const dbKey = 'savedRecipes_' + currentUser.userId;
-    let saved = JSON.parse(localStorage.getItem(dbKey)) || [];
-
-    // Create a new recipe object
     // Try to extract title from markdown (# Title)
     const titleMatch = currentRecipe.match(/#\s+(.+)/);
     const title = titleMatch ? titleMatch[1] : `내가 만든 요리 (${new Date().toLocaleDateString()})`;
 
-    const newRecipe = {
-        id: Date.now().toString(),
-        title: title,
-        content: currentRecipe,
-        date: new Date().toISOString()
-    };
+    insertRecipeToSupabase(title, currentRecipe);
+}
 
-    saved.push(newRecipe);
-    localStorage.setItem(dbKey, JSON.stringify(saved));
+async function insertRecipeToSupabase(title, content) {
+    const { error } = await supabaseClient
+        .from('items')
+        .insert([{ user_id: currentUser.id, title, content }]);
 
-    showToast('레시피가 성공적으로 저장되었습니다! [내 프로필]에서 확인하세요.', 'success');
+    if (error) {
+        showToast('레시피 저장에 실패했습니다: ' + error.message, 'error');
+    } else {
+        showToast('레시피가 성공적으로 저장되었습니다! [내 프로필]에서 확인하세요.', 'success');
+    }
 }
 
 myPageBtn.addEventListener('click', () => {
@@ -182,7 +229,7 @@ function goToMain() {
     }
 }
 
-function renderMyPage() {
+async function renderMyPage() {
     if (!currentUser) return;
 
     // Hide all other sections
@@ -194,21 +241,26 @@ function renderMyPage() {
     myPageSection.style.display = 'block';
     myPageSection.classList.add('fade-in');
 
-    const dbKey = 'savedRecipes_' + currentUser.userId;
-    const saved = JSON.parse(localStorage.getItem(dbKey)) || [];
+    const { data: saved, error } = await supabaseClient
+        .from('items')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .order('created_at', { ascending: false });
 
     savedRecipeGrid.innerHTML = '';
 
-    if (saved.length === 0) {
+    if (error) {
+        showToast('레시피를 불러오는데 실패했습니다: ' + error.message, 'error');
+        return;
+    }
+
+    if (!saved || saved.length === 0) {
         savedRecipeGrid.innerHTML = `<p style="grid-column: 1 / -1; text-align: center; color: var(--text-light); padding: 3rem;">아직 저장된 레시피가 없습니다. 텅 빈 냉장고를 채워볼까요?</p>`;
         return;
     }
 
-    // Sort descending by date
-    saved.sort((a, b) => new Date(b.date) - new Date(a.date));
-
     saved.forEach(recipe => {
-        const d = new Date(recipe.date);
+        const d = new Date(recipe.created_at);
         const dateStr = `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
 
         // Strip markdown roughly for preview
@@ -243,14 +295,19 @@ function renderMyPage() {
 }
 
 window.deleteRecipe = function (recipeId) {
-    showConfirm("레시피 삭제", "이 레시피를 정말 삭제하시겠습니까?", () => {
-        const dbKey = 'savedRecipes_' + currentUser.userId;
-        let saved = JSON.parse(localStorage.getItem(dbKey)) || [];
-        saved = saved.filter(r => r.id !== recipeId);
+    showConfirm("레시피 삭제", "이 레시피를 정말 삭제하시겠습니까?", async () => {
+        const { error } = await supabaseClient
+            .from('items')
+            .delete()
+            .eq('id', recipeId)
+            .eq('user_id', currentUser.id);
 
-        localStorage.setItem(dbKey, JSON.stringify(saved));
-        renderMyPage(); // Re-render
-        showToast('삭제되었습니다.');
+        if (error) {
+            showToast('레시피 삭제에 실패했습니다: ' + error.message, 'error');
+        } else {
+            renderMyPage(); // Re-render
+            showToast('삭제되었습니다.');
+        }
     });
 };
 

@@ -10,6 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -170,10 +171,14 @@
                 <button id="closeLoginBtn"
                     style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
             </div>
-            <p style="font-size: 0.9rem; color: #666; margin-bottom: 1.5rem;">※ 현재 버전은 로컬 스토리지를 이용한 임시 로그인입니다. 아무 아이디나
-                입력해도 로그인됩니다.</p>
-            <input type="text" id="usernameInput" placeholder="이메일 또는 아이디 (테스트용)" style="margin-bottom: 1rem;">
-            <button id="doLoginBtn" class="primary-btn">시작하기</button>
+            <input type="email" id="emailInput" placeholder="이메일"
+                style="margin-bottom: 0.5rem; width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+            <input type="password" id="passwordInput" placeholder="비밀번호"
+                style="margin-bottom: 1.5rem; width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+            <div style="display: flex; gap: 0.5rem;">
+                <button id="doSignupBtn" class="secondary-btn" style="flex: 1;">회원가입</button>
+                <button id="doLoginBtn" class="primary-btn" style="flex: 1; margin-top: 0;">로그인</button>
+            </div>
         </div>
     </div>
 
